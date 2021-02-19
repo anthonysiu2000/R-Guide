@@ -357,7 +357,7 @@ def goalAbsence(GB):
 
 
 
-    
+
 #visualization loop
 while True:
     ev = pygame.event.get()
@@ -369,62 +369,10 @@ while True:
 
 
 
-        #MAIN FUNCTION FOR AGENT
+        #MAIN FUNCTION FOR Robot movement
 
-        if advanceOne:
-            advanceOne = False
-            #the unit(string value) that beats the piece that was just moved
-            #pToMove = win_matchup(destination.unit) 
-            #possiblePieces = get_pieces(BOARD, pToMove)
-            possiblePieces = get_pieces(BOARD,"all") 
-            pToMove = random.randrange(len(possiblePieces))
-            while True:
-                check = False
-                for neighbor in possiblePieces[pToMove].neighbors:
-                    if neighbor.player != "agent":
-                        check = True
-                if check == False:
-                    pToMove = random.randrange(len(possiblePieces))
-                else:
-                    break
-        
-            #dummyVariable, destination = minimax(BOARD, possiblePieces[pToMove] 
-            #, 6, True)
-            #dummyVariable, destination = alphaBetaPruningPQ(BOARD, possiblePieces[pToMove] 
-            #, 3, 0, 0, True)
-            unitSelected = possiblePieces[pToMove] 
-            #print("output from minimax"+ str(dummyVariable))
-            print("final move"+ str([destination.rowval,destination.colval]))
-            Drow = destination.rowval
-            Dcol = destination.colval
-            Urow = unitSelected.rowval
-            Ucol = unitSelected.colval
             
-            mp = "winning"
-            if destination.player == "adversary":
-                if destination.unit == unitSelected.unit:
-                    mp = "even"
-                if destination.unit == "hero" and unitSelected.unit == "wumpus": 
-                    mp = "losing"
-                if destination.unit == "wumpus" and unitSelected.unit == "mage": 
-                    mp = "losing"
-                if destination.unit == "mage" and unitSelected.unit == "hero": 
-                    mp = "losing"
 
-            #changes board according to action
-            if mp == "even":
-                BOARD.board[Drow][Dcol].player = "neutral"
-                BOARD.board[Drow][Dcol].unit = "empty"
-                BOARD.board[Urow][Ucol].player= "neutral"
-                BOARD.board[Urow][Ucol].unit = "empty"
-            elif mp == "losing":
-                BOARD.board[Urow][Ucol].player= "neutral"
-                BOARD.board[Urow][Ucol].unit = "empty"
-            else:
-                BOARD.board[Drow][Dcol].player = "agent"
-                BOARD.board[Drow][Dcol].unit = unitSelected.unit
-                BOARD.board[Urow][Ucol].player= "neutral"
-                BOARD.board[Urow][Ucol].unit = "empty"
             
 
             BOARD.setNeighbors()
