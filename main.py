@@ -150,12 +150,6 @@ blue = (0, 0, 255)
 
 
 
-
-
-
-
-
-
 #function used to refresh a tile on visualization
 def showBoardUnit(screen, board, i, j):
     global w
@@ -167,6 +161,10 @@ def showBoardUnit(screen, board, i, j):
         board[i][j].show(screen, blue, w, h, "goal")
     if board[j][i].unit == "pit":
         board[i][j].show(screen, green, w, h, "pit")
+
+
+
+
 
 
 #loops through entire board to create tiles
@@ -200,6 +198,12 @@ destination = BOARD.board[0][0]
 #Initiates boolean for iterative robot movement
 advanceOne = False
 
+
+
+
+
+
+
 #This function is linked to the visualization loop
 #when mouse clicks, selects player piece, or its desired location
 def mousePress(x):
@@ -208,7 +212,6 @@ def mousePress(x):
     global advanceOne
     global unitSelected
     global destination
-    global oneMoveOnly
     global BOARD
     global screen
     global cols
@@ -219,7 +222,6 @@ def mousePress(x):
     b = x[1]
     g1 = a // (720 // cols)
     g2 = b // (720 // row)
-    global prevTile
 
     
 
@@ -262,7 +264,6 @@ def mousePress(x):
 
                 tilerect = pygame.Rect(g1 * h, g2 * h, h, h)
                 screen.fill((80, 80, 0), tilerect, pygame.BLEND_RGB_ADD)
-                prevTile = tilerect
 
                 pygame.display.update()
 
@@ -342,22 +343,6 @@ def goalAbsence(GB):
                 return False
     return True
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #visualization loop
 while True:
     ev = pygame.event.get()
@@ -369,17 +354,10 @@ while True:
 
 
 
-        #MAIN FUNCTION FOR Robot movement
+        #MAIN FUNCTION FOR AGENT
 
-            
-
-            
-
-            BOARD.setNeighbors()
-            #updates visualization
-            showBoardUnit(screen, BOARD.board, Dcol, Drow)
-            showBoardUnit(screen, BOARD.board, Ucol, Urow)
-            pygame.display.update()
+        if advanceOne:
+            advanceOne = False
 
 
 
