@@ -64,14 +64,14 @@ class Map:
         self.side = side
         self.size = self.side * self.side
 
-        #creates board 2D array of Tiles
-        self.board = [[0 for i in range(self.side)] for j in range(self.side)]
+        #creates map 2D array of Tiles
+        self.map = [[0 for i in range(self.side)] for j in range(self.side)]
         for i in range(self.side):
             for j in range(self.side):
-                self.board[i][j] = Tile(i,j)
+                self.map[i][j] = Tile(i,j)
 
     #Randomly places the robot and goal on the map
-    def newBoard(self):
+    def newMap(self):
         robotRow = random.randint(0, self.side-1)
         robotCol = random.randint(0, self.side-1)
         goalRow = random.randint(0, self.side-1)
@@ -81,8 +81,8 @@ class Map:
             goalRow = random.randint(0, self.side-1)
             goalCol = random.randint(0, self.side-1)
 
-        self.board[robotCol][robotRow].unit = "robot"
-        self.board[goalCol][goalRow].unit = "goal"
+        self.map[robotCol][robotRow].unit = "robot"
+        self.map[goalCol][goalRow].unit = "goal"
         
     #creates pits
     def setPits(self):
@@ -91,15 +91,15 @@ class Map:
             pitcol = random.randint(0, self.side-1)
 
             #cannot place pit on robot nor goal
-            if (self.board[pitcol][i].unit == "empty"):
-                self.board[pitcol][i].unit = "pit"
+            if (self.map[pitcol][i].unit == "empty"):
+                self.map[pitcol][i].unit = "pit"
             
 
     #sets neighbors for all Tiles
     def setNeighbors(self):
         for i in range(self.side):
             for j in range(self.side):
-                self.board[i][j].neighbors = []
+                self.map[i][j].neighbors = []
 
                 #goes through tiles diagonal and adjacent to the tile, and appends to neighbors list
                 for k in range(-1, 2):
@@ -110,7 +110,7 @@ class Map:
                             continue
                         if (j+l < 0) or (j+l >= self.side):
                             continue
-                        self.board[i][j].neighbors.append(self.board[i + k][j + l])
+                        self.map[i][j].neighbors.append(self.map[i + k][j + l])
 
 
 
@@ -134,30 +134,28 @@ class Map:
     #code used to determine when robot reaches goal
         for i in range(self.side):
             for j in range(self.side):
-                if self.board[i][j].unit == "goal":
+                if self.map[i][j].unit == "goal":
                     return False
         return True
     
-
-
+    def showMapUnit(self, screen, i, j):
     #function used to refresh a tile on visualization
-    def showBoardUnit(self, screen, i, j):
         w = 720 / self.side
 
-        if self.board[j][i].unit == "robot":
-            self.board[i][j].show(screen, (255, 0, 0), w, w, "robot")
-        elif self.board[j][i].unit == "goal":
-            self.board[i][j].show(screen, (0, 0, 255), w, w, "goal")
-        elif self.board[j][i].unit == "pit":
-            self.board[i][j].show(screen, (0, 255, 0), w, w, "pit")
+        if self.map[j][i].unit == "robot":
+            self.map[i][j].show(screen, (255, 0, 0), w, w, "robot")
+        elif self.map[j][i].unit == "goal":
+            self.map[i][j].show(screen, (0, 0, 255), w, w, "goal")
+        elif self.map[j][i].unit == "pit":
+            self.map[i][j].show(screen, (0, 255, 0), w, w, "pit")
         else:
-            self.board[i][j].show(screen, (127,127,127), w, w, "empty")
+            self.map[i][j].show(screen, (127,127,127), w, w, "empty")
 
  
 
 
 #Creating a Map object for visualization
-MAP = Map(9)
+MAP = Map(1)
 
 #boolean used to determine which ordinal mouse click we are on
 selectSecond = False
@@ -166,10 +164,10 @@ selectSecond = False
 validDestination = False
 
 #variable used to store selected unit
-unitSelected = MAP.board[0][0]
+unitSelected = MAP.map[0][0]
 
 #variable used to store desired location
-destination = MAP.board[0][0]
+destination = MAP.map[0][0]
 
 #Initiates boolean for iterative robot movement
 advanceOne = False
@@ -177,7 +175,7 @@ advanceOne = False
 
 
 #function to create a brand new map visualization
-def newMap(dimension):
+def newMapVisual(dimension):
     global MAP
     global selectSecond
     global validDestination
@@ -185,28 +183,26 @@ def newMap(dimension):
     global destination
     global advanceOne
     MAP = Map(dimension)
-    MAP.newBoard()
+    MAP.newMap()
     MAP.setPits()
     MAP.setNeighbors()
     for i in range(MAP.side):
         for j in range(MAP.side):
-            MAP.showBoardUnit(screen, i, j)
+            MAP.showMapUnit(screen, i, j)
             
     selectSecond = False
     validDestination = False
-    unitSelected = MAP.board[0][0]
-    destination = MAP.board[0][0]
-    advanceOne = False     
+    unitSelected = MAP.map[0][0]
+    destination = MAP.map[0][0]
+    advanceOne = False
+         
     pygame.draw.rect(screen, (0,0,0), [800, 320, 200, 360])
     pygame.display.update()
 
+
+
 #Initializing the map for visualization
-newMap(9)
-
-
-
-
-
+newMapVisual(20)
 
 #CREATES BUTTON VISUALIZATION on the right side of the screen
 font = pygame.font.Font('freesansbold.ttf', 20)
@@ -216,7 +212,7 @@ text2 = font.render('Advance Robot', True, (0,0,0))
 screen.blit(text2, (850, 80))
 
 pygame.draw.rect(screen, (250,250,250), [800, 140, 200, 40])
-text3 = font.render('New 9x9', True, (0,0,0))
+text3 = font.render('New 20x20', True, (0,0,0))
 screen.blit(text3, (850, 140))
 
 pygame.display.update()
@@ -249,16 +245,16 @@ def mousePress(x):
     #First Click (select robot or advance robot)
     if selectSecond == False:
 
-        #OPTION 1: create new 9 by 9 board
+        #OPTION 1: create new 20 by 20 map
         if (a < 1000 and a > 800 and b < 180 and b > 140):
-            newMap(9)
+            newMapVisual(20)
 
 
 
 
         #OPTION 2: select unit
         elif (g1 < cols):
-            unitSelected = MAP.board[g1][g2]
+            unitSelected = MAP.map[g1][g2]
             #tests if user clicks on the robot, or not
             if unitSelected.unit != "robot":
                 print("invalid tile")
@@ -295,7 +291,7 @@ def mousePress(x):
             return
 
 
-        destination = MAP.board[g1][g2]
+        destination = MAP.map[g1][g2]
         #tests if destination is a neighbor;
         for neighbor in unitSelected.neighbors:
             if destination == neighbor:
@@ -305,7 +301,7 @@ def mousePress(x):
         if validDestination == False:
             selectSecond = False
             print("invalid destination")
-            MAP.showBoardUnit(screen, g2, g1)
+            MAP.showMapUnit(screen, g2, g1)
             return
 
         #resets booleans and obtains indices
@@ -319,17 +315,17 @@ def mousePress(x):
         #checks if destination is pit
         if destination.unit == "pit":
             print("robot has hit a pit")
-            MAP.board[Urow][Ucol].unit = "empty"
+            MAP.map[Urow][Ucol].unit = "empty"
         else: 
-            MAP.board[Drow][Dcol].unit = "robot"
-            MAP.board[Urow][Ucol].unit = "empty"
+            MAP.map[Drow][Dcol].unit = "robot"
+            MAP.map[Urow][Ucol].unit = "empty"
         
 
         MAP.setNeighbors()
         print("-----------")
         #updates visualization
-        MAP.showBoardUnit(screen, Dcol, Drow)
-        MAP.showBoardUnit(screen, Ucol, Urow)
+        MAP.showMapUnit(screen, Dcol, Drow)
+        MAP.showMapUnit(screen, Ucol, Urow)
         pygame.display.update()
 
 
@@ -342,7 +338,7 @@ def mousePress(x):
 From this point on we are going to include the ai for the robot
 """ 
 
-
+#insert dijkstras here
 
 
 
