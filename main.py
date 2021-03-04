@@ -8,7 +8,7 @@ import random
 import numpy as np
 from queue import PriorityQueue
 
-#Tile Object for each tile in the gameboard
+#Tile Object for each tile in the Map
 class Tile:
     #load in images
 
@@ -53,8 +53,8 @@ class Tile:
         pygame.display.update()
 
 
-#Gameboard Class containing tiles indexed by row and column
-class Gameboard:
+#Map Class containing tiles indexed by row and column
+class Map:
     def __init__(self, side):
         self.side = side
         self.size = self.side * self.side
@@ -125,21 +125,30 @@ class Gameboard:
             return -1
         return j + i * self.side
 
+    def goalAbsence(self):
+    #code used to determine when robot reaches goal
+        for i in range(self.side):
+            for j in range(self.side):
+                if self.board[i][j].unit == "goal":
+                    return False
+        return True
+    
+
  
 
 
 pygame.init()
-#Creating a GameBoard object for visualization
+#Creating a Map object for visualization
 screen = pygame.display.set_mode((1080, 720))
 
-BOARD = Gameboard(9)
-BOARD.newBoard()
-BOARD.setPits()
-BOARD.setNeighbors()
+MAP = Map(18)
+MAP.newBoard()
+MAP.setPits()
+MAP.setNeighbors()
 
 
-cols = BOARD.side
-row = BOARD.side
+cols = MAP.side
+row = MAP.side
 w = 720 // cols
 h = 720 // row
 
@@ -167,15 +176,19 @@ def showBoardUnit(screen, board, i, j):
 
 
 
+
+
+
+
 #loops through entire board to create tiles
 for i in range(cols):
     for j in range(row):
-        showBoardUnit(screen, BOARD.board, i, j)
+        showBoardUnit(screen, MAP.board, i, j)
 
 selectSecond = False
 validDestination = False
 
-#creates advance button, and 9 by 9 button
+#CREATES BUTTON VISUALIZATION
 font = pygame.font.Font('freesansbold.ttf', 20)
 
 pygame.draw.rect(screen, (250,250,250), [800, 80, 200, 40])
@@ -189,20 +202,18 @@ screen.blit(text3, (850, 140))
 pygame.display.update()
 
 
+
+
+
+
 #variable used to store selected unit
-unitSelected = BOARD.board[0][0]
+unitSelected = MAP.board[0][0]
 
 #variable used to store desired location
-destination = BOARD.board[0][0]
+destination = MAP.board[0][0]
 
 #Initiates boolean for iterative robot movement
 advanceOne = False
-
-
-
-
-
-
 
 #This function is linked to the visualization loop
 #when mouse clicks, selects player piece, or its desired location
@@ -212,7 +223,7 @@ def mousePress(x):
     global advanceOne
     global unitSelected
     global destination
-    global BOARD
+    global MAP
     global screen
     global cols
     global row
@@ -230,22 +241,22 @@ def mousePress(x):
 
         #OPTION 1: create new 9 by 9 board
         if (a < 1000 and a > 800 and b < 180 and b > 140):
-            BOARD = Gameboard(9)
-            BOARD.newBoard()
-            BOARD.setPits()
-            BOARD.setNeighbors()
-            cols = BOARD.side
-            row = BOARD.side
+            MAP = Map(9)
+            MAP.newBoard()
+            MAP.setPits()
+            MAP.setNeighbors()
+            cols = MAP.side
+            row = MAP.side
             w = 720 / cols
             h = 720 / row
             for i in range(cols):
                 for j in range(row):
-                    showBoardUnit(screen, BOARD.board, i, j)
+                    showBoardUnit(screen, MAP.board, i, j)
                     
             selectSecond = False
             validDestination = False
-            unitSelected = BOARD.board[0][0]
-            destination = BOARD.board[0][0]
+            unitSelected = MAP.board[0][0]
+            destination = MAP.board[0][0]
             advanceOne = False
             
             pygame.draw.rect(screen, (0,0,0), [800, 320, 200, 360])
@@ -253,7 +264,7 @@ def mousePress(x):
 
         #OPTION 2: select unit
         elif (g1 < cols):
-            unitSelected = BOARD.board[g1][g2]
+            unitSelected = MAP.board[g1][g2]
             #tests if user clicks on the robot, or not
             if unitSelected.unit != "robot":
                 print("invalid tile")
@@ -290,7 +301,7 @@ def mousePress(x):
             return
 
 
-        destination = BOARD.board[g1][g2]
+        destination = MAP.board[g1][g2]
         #tests if destination is a neighbor;
         for neighbor in unitSelected.neighbors:
             if destination == neighbor:
@@ -300,7 +311,7 @@ def mousePress(x):
         if validDestination == False:
             selectSecond = False
             print("invalid destination")
-            showBoardUnit(screen, BOARD.board, g2, g1)
+            showBoardUnit(screen, MAP.board, g2, g1)
             return
 
         #resets booleans and obtains indices
@@ -313,19 +324,20 @@ def mousePress(x):
 
         #checks if destination is pit
         if destination.unit == "pit":
-            print("you hit a pit")
-            BOARD.board[Urow][Ucol].unit = "empty"
+            print("robot has hit a pit")
+            MAP.board[Urow][Ucol].unit = "empty"
         else: 
-            BOARD.board[Drow][Dcol].unit = "robot"
-            BOARD.board[Urow][Ucol].unit = "empty"
+            MAP.board[Drow][Dcol].unit = "robot"
+            MAP.board[Urow][Ucol].unit = "empty"
         
 
-        BOARD.setNeighbors()
+        MAP.setNeighbors()
         print("-----------")
         #updates visualization
-        showBoardUnit(screen, BOARD.board, Dcol, Drow)
-        showBoardUnit(screen, BOARD.board, Ucol, Urow)
+        showBoardUnit(screen, MAP.board, Dcol, Drow)
+        showBoardUnit(screen, MAP.board, Ucol, Urow)
         pygame.display.update()
+
 
 
 
@@ -336,12 +348,11 @@ def mousePress(x):
 From this point on we are going to include the ai for the robot
 """ 
 
-def goalAbsence(GB):
-    for i in range(GB.side):
-        for j in range(GB.side):
-            if GB.board[i][j].unit == "goal":
-                return False
-    return True
+
+
+
+
+
     
 #visualization loop
 while True:
@@ -349,13 +360,14 @@ while True:
     for event in ev:
 
         #Commands called when game is over
-        if goalAbsence(BOARD):
+        if MAP.goalAbsence():
             print("Goal Reached")
 
 
 
-        #MAIN FUNCTION FOR AGENT
 
+        #MAIN FUNCTION FOR AGENT
+        #to be coded
         if advanceOne:
             advanceOne = False
 
@@ -370,7 +382,6 @@ while True:
         #Extraneous code
         if event.type == pygame.QUIT:
             pygame.display.quit()
-
 
         #MAIN FUNCTION FOR MOUSE CLICKING
         if pygame.mouse.get_pressed()[0]:
