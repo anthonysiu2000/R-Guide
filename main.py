@@ -8,6 +8,11 @@ import random
 import numpy as np
 from queue import PriorityQueue
 
+
+#Initiate map gui
+pygame.init()
+screen = pygame.display.set_mode((1080, 720))
+
 #Tile Object for each tile in the Map
 class Tile:
     #load in images
@@ -134,61 +139,76 @@ class Map:
         return True
     
 
+
+    #function used to refresh a tile on visualization
+    def showBoardUnit(self, screen, i, j):
+        w = 720 / self.side
+
+        if self.board[j][i].unit == "robot":
+            self.board[i][j].show(screen, (255, 0, 0), w, w, "robot")
+        elif self.board[j][i].unit == "goal":
+            self.board[i][j].show(screen, (0, 0, 255), w, w, "goal")
+        elif self.board[j][i].unit == "pit":
+            self.board[i][j].show(screen, (0, 255, 0), w, w, "pit")
+        else:
+            self.board[i][j].show(screen, (127,127,127), w, w, "empty")
+
  
 
 
-pygame.init()
 #Creating a Map object for visualization
-screen = pygame.display.set_mode((1080, 720))
+MAP = Map(9)
 
-MAP = Map(18)
-MAP.newBoard()
-MAP.setPits()
-MAP.setNeighbors()
-
-
-cols = MAP.side
-row = MAP.side
-w = 720 // cols
-h = 720 // row
-
-red = (255, 0, 0)
-green = (0, 255, 0)
-blue = (0, 0, 255)
-
-
-
-
-#function used to refresh a tile on visualization
-def showBoardUnit(screen, board, i, j):
-    global w
-    global h
-    board[i][j].show(screen, (127,127,127), w, h, "empty")
-    if board[j][i].unit == "robot":
-        board[i][j].show(screen, red, w, h, "robot")
-    if board[j][i].unit == "goal":
-        board[i][j].show(screen, blue, w, h, "goal")
-    if board[j][i].unit == "pit":
-        board[i][j].show(screen, green, w, h, "pit")
-
-
-
-
-
-
-
-
-
-
-#loops through entire board to create tiles
-for i in range(cols):
-    for j in range(row):
-        showBoardUnit(screen, MAP.board, i, j)
-
+#boolean used to determine which ordinal mouse click we are on
 selectSecond = False
+
+#boolean used to determine if robot chooses a tile that is possible to move to
 validDestination = False
 
-#CREATES BUTTON VISUALIZATION
+#variable used to store selected unit
+unitSelected = MAP.board[0][0]
+
+#variable used to store desired location
+destination = MAP.board[0][0]
+
+#Initiates boolean for iterative robot movement
+advanceOne = False
+
+
+
+#function to create a brand new map visualization
+def newMap(dimension):
+    global MAP
+    global selectSecond
+    global validDestination
+    global unitSelected
+    global destination
+    global advanceOne
+    MAP = Map(dimension)
+    MAP.newBoard()
+    MAP.setPits()
+    MAP.setNeighbors()
+    for i in range(MAP.side):
+        for j in range(MAP.side):
+            MAP.showBoardUnit(screen, i, j)
+            
+    selectSecond = False
+    validDestination = False
+    unitSelected = MAP.board[0][0]
+    destination = MAP.board[0][0]
+    advanceOne = False     
+    pygame.draw.rect(screen, (0,0,0), [800, 320, 200, 360])
+    pygame.display.update()
+
+#Initializing the map for visualization
+newMap(9)
+
+
+
+
+
+
+#CREATES BUTTON VISUALIZATION on the right side of the screen
 font = pygame.font.Font('freesansbold.ttf', 20)
 
 pygame.draw.rect(screen, (250,250,250), [800, 80, 200, 40])
@@ -205,16 +225,6 @@ pygame.display.update()
 
 
 
-
-#variable used to store selected unit
-unitSelected = MAP.board[0][0]
-
-#variable used to store desired location
-destination = MAP.board[0][0]
-
-#Initiates boolean for iterative robot movement
-advanceOne = False
-
 #This function is linked to the visualization loop
 #when mouse clicks, selects player piece, or its desired location
 def mousePress(x):
@@ -225,14 +235,14 @@ def mousePress(x):
     global destination
     global MAP
     global screen
-    global cols
-    global row
-    global w
-    global h
+    cols = MAP.side
+    rows = MAP.side
+    w = 720 / cols
+    h = 720 / rows
     a = x[0]
     b = x[1]
     g1 = a // (720 // cols)
-    g2 = b // (720 // row)
+    g2 = b // (720 // rows)
 
     
 
@@ -241,26 +251,10 @@ def mousePress(x):
 
         #OPTION 1: create new 9 by 9 board
         if (a < 1000 and a > 800 and b < 180 and b > 140):
-            MAP = Map(9)
-            MAP.newBoard()
-            MAP.setPits()
-            MAP.setNeighbors()
-            cols = MAP.side
-            row = MAP.side
-            w = 720 / cols
-            h = 720 / row
-            for i in range(cols):
-                for j in range(row):
-                    showBoardUnit(screen, MAP.board, i, j)
-                    
-            selectSecond = False
-            validDestination = False
-            unitSelected = MAP.board[0][0]
-            destination = MAP.board[0][0]
-            advanceOne = False
-            
-            pygame.draw.rect(screen, (0,0,0), [800, 320, 200, 360])
-            pygame.display.update()
+            newMap(9)
+
+
+
 
         #OPTION 2: select unit
         elif (g1 < cols):
@@ -311,7 +305,7 @@ def mousePress(x):
         if validDestination == False:
             selectSecond = False
             print("invalid destination")
-            showBoardUnit(screen, MAP.board, g2, g1)
+            MAP.showBoardUnit(screen, g2, g1)
             return
 
         #resets booleans and obtains indices
@@ -334,8 +328,8 @@ def mousePress(x):
         MAP.setNeighbors()
         print("-----------")
         #updates visualization
-        showBoardUnit(screen, MAP.board, Dcol, Drow)
-        showBoardUnit(screen, MAP.board, Ucol, Urow)
+        MAP.showBoardUnit(screen, Dcol, Drow)
+        MAP.showBoardUnit(screen, Ucol, Urow)
         pygame.display.update()
 
 
