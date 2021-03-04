@@ -53,8 +53,6 @@ class Tile:
             screen.blit(self.img, (self.colval * w, self.rowval * w), imageRect)
         if unitType == "empty":
             pygame.draw.rect(screen, (0, 0, 255-self.altitude * 16), (self.colval * w, self.rowval * w, w, w), 0)
-        if unitType == "pit":
-            pygame.draw.rect(screen, (0, 255, 0), (self.colval * w, self.rowval * w, w, w), 0)
         
         pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w + w, self.rowval * w], 1)
         pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w, self.rowval * w + w], 1)
@@ -87,16 +85,6 @@ class Map:
         self.map[robotCol][robotRow].unit = "robot"
         self.map[goalCol][goalRow].unit = "goal"
         
-    #creates pits
-    def setPits(self):
-        for i in range(0, self.side):
-            #randomly chooses colomn val
-            pitcol = random.randint(0, self.side-1)
-
-            #cannot place pit on robot nor goal
-            if (self.map[pitcol][i].unit == "empty"):
-                self.map[pitcol][i].unit = "pit"
-            
 
     #sets neighbors for all Tiles
     def setNeighbors(self):
@@ -116,8 +104,9 @@ class Map:
                         self.map[i][j].neighbors.append(self.map[i + k][j + l])
 
 
-    #recursive method to assign altitudes to neighboring tiles
+    
     def recursiveSetAltitude(self, tile):
+    #recursive method to assign altitudes to neighboring tiles
         for neighbor in tile.neighbors:
             if (neighbor.parsed == True):
                 continue
@@ -130,7 +119,7 @@ class Map:
                 neighbor.altitude = 15
             else:
                 neighbor.altitude = tile.altitude + increment
-                
+
             #sets boolean so we not repeat neighbors
             neighbor.parsed = True
 
