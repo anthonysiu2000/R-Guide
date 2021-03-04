@@ -34,27 +34,30 @@ class Tile:
         self.neighbors = []
         self.rowval = rowval
         self.colval = colval
+        self.altitude = 0
+        self.parsed = False
         self.img = self.images[0]
 
     #displays a single tile to the screen, depending on unit type
-    def show(self, screen, color, w, h, unitType):
+    def show(self, screen, side, unitType):
+        w = 720 / side
         if unitType == "robot":
             self.img = self.images[0]
-            self.img = pygame.transform.scale(self.img, (int(w), int(h)))
+            self.img = pygame.transform.scale(self.img, (int(w), int(w)))
             imageRect = self.img.get_rect()
-            screen.blit(self.img, (self.colval * w, self.rowval * h), imageRect)
+            screen.blit(self.img, (self.colval * w, self.rowval * w), imageRect)
         if unitType == "goal":
             self.img = self.images[1]
-            self.img = pygame.transform.scale(self.img, (int(w), int(h)))
+            self.img = pygame.transform.scale(self.img, (int(w), int(w)))
             imageRect = self.img.get_rect()
-            screen.blit(self.img, (self.colval * w, self.rowval * h), imageRect)
+            screen.blit(self.img, (self.colval * w, self.rowval * w), imageRect)
         if unitType == "empty":
-            pygame.draw.rect(screen, color, (self.colval * w, self.rowval * h, w, h), 0)
+            pygame.draw.rect(screen, (0, 0, 255-self.altitude * 16), (self.colval * w, self.rowval * w, w, w), 0)
         if unitType == "pit":
-            pygame.draw.rect(screen, color, (self.colval * w, self.rowval * h, w, h), 0)
+            pygame.draw.rect(screen, (0, 255, 0), (self.colval * w, self.rowval * w, w, w), 0)
         
-        pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval*h], [self.colval * w + w, self.rowval*h], 1)
-        pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval*h], [self.colval * w, self.rowval*h + h], 1)
+        pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w + w, self.rowval * w], 1)
+        pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w, self.rowval * w + w], 1)
         pygame.display.update()
 
 
@@ -113,6 +116,52 @@ class Map:
                         self.map[i][j].neighbors.append(self.map[i + k][j + l])
 
 
+    #recursive method to assign altitudes to neighboring tiles
+    def recursiveSetAltitude(self, tile):
+        for neighbor in tile.neighbors:
+            if (neighbor.parsed == True):
+                continue
+
+            #sets altitude of the neighbor
+            increment = random.randint(-1, 1)
+            if (tile.altitude + increment < 0):
+                neighbor.altitude = 0
+            elif (tile.altitude + increment > 15):
+                neighbor.altitude = 15
+            else:
+                neighbor.altitude = tile.altitude + increment
+                
+            #sets boolean so we not repeat neighbors
+            neighbor.parsed = True
+
+            #recursion
+            self.recursiveSetAltitude(neighbor)
+        return
+
+
+    def setAltitudes(self): 
+    #randomly creates altitudes for each tile
+
+        #chooses starting tiles
+        a = random.randint(0, self.side-1)
+        b = random.randint(0, self.side-1)
+        starttile = self.map[a][b]
+            #assigns random altitude ranging from values from 3 to 12
+        starttile.altitude = random.randint(3, 12)
+        starttile.parsed = True
+            #assigns altitudes to the rest of the map
+        self.recursiveSetAltitude(starttile)
+
+
+
+        
+        #resets parsed boolean values
+        for i in range(self.side):
+            for j in range(self.side):
+                self.map[i][j].parsed = False
+
+
+
 
     def position(self, value):
     #computes the index of value in the matrix interpreation of the array
@@ -140,16 +189,7 @@ class Map:
     
     def showMapUnit(self, screen, i, j):
     #function used to refresh a tile on visualization
-        w = 720 / self.side
-
-        if self.map[j][i].unit == "robot":
-            self.map[i][j].show(screen, (255, 0, 0), w, w, "robot")
-        elif self.map[j][i].unit == "goal":
-            self.map[i][j].show(screen, (0, 0, 255), w, w, "goal")
-        elif self.map[j][i].unit == "pit":
-            self.map[i][j].show(screen, (0, 255, 0), w, w, "pit")
-        else:
-            self.map[i][j].show(screen, (127,127,127), w, w, "empty")
+        self.map[i][j].show(screen, self.side, self.map[j][i].unit)
 
  
 
@@ -184,8 +224,8 @@ def newMapVisual(dimension):
     global advanceOne
     MAP = Map(dimension)
     MAP.newMap()
-    MAP.setPits()
     MAP.setNeighbors()
+    MAP.setAltitudes()
     for i in range(MAP.side):
         for j in range(MAP.side):
             MAP.showMapUnit(screen, i, j)
