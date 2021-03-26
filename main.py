@@ -6,7 +6,17 @@ import math
 import os
 import random 
 import numpy as np
+import queue
 from queue import PriorityQueue
+from dataclasses import dataclass, field
+from typing import Any
+
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: int
+    item: Any=field(compare=False)
+
+
 
 
 #Initiate map gui
@@ -19,14 +29,13 @@ class Tile:
 
     #Anthony Code:
     images = [
-        pygame.image.load("C:/PYTHONSTUFF/RGuide/imgs/robot.jpg"),
-        pygame.image.load("C:/PYTHONSTUFF/RGuide/imgs/goal.png"),
+        pygame.image.load("D:/Code/PYTHONSTUFF/RGuide/imgs/robot.jpg"),
+        pygame.image.load("D:/Code/PYTHONSTUFF/RGuide/imgs/goal.png"),
     ]
-
     #General Code:
     #images = [
-    #    pygame.image.load("imgs/robot.jpg"),
-    #    pygame.image.load("imgs/goal.png"),
+    #    pygame.image.load(".imgs/robot.jpg"),
+    #    pygame.image.load(".imgs/goal.png"),
     #]
 
     def __init__(self, rowval, colval):
@@ -35,6 +44,7 @@ class Tile:
         self.rowval = rowval
         self.colval = colval
         self.altitude = 0
+        self.path = False
         self.parsed = False
         self.img = self.images[0]
 
@@ -52,7 +62,10 @@ class Tile:
             imageRect = self.img.get_rect()
             screen.blit(self.img, (self.colval * w, self.rowval * w), imageRect)
         if unitType == "empty":
-            pygame.draw.rect(screen, (0, 0, 255-self.altitude * 16), (self.colval * w, self.rowval * w, w, w), 0)
+            if self.path == True:
+                pygame.draw.rect(screen, (255-self.altitude * 16, 0, 0), (self.colval * w, self.rowval * w, w, w), 0)
+            else:
+                pygame.draw.rect(screen, (0, 0, 255-self.altitude * 16), (self.colval * w, self.rowval * w, w, w), 0)
         
         pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w + w, self.rowval * w], 1)
         pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w, self.rowval * w + w], 1)
@@ -105,28 +118,6 @@ class Map:
 
 
     
-    def recursiveSetAltitude(self, tile):
-    #recursive method to assign altitudes to neighboring tiles
-        for neighbor in tile.neighbors:
-            if (neighbor.parsed == True):
-                continue
-
-            #sets altitude of the neighbor
-            increment = random.randint(-1, 1)
-            if (tile.altitude + increment < 0):
-                neighbor.altitude = 0
-            elif (tile.altitude + increment > 15):
-                neighbor.altitude = 15
-            else:
-                neighbor.altitude = tile.altitude + increment
-
-            #sets boolean so we not repeat neighbors
-            neighbor.parsed = True
-
-            #recursion
-            self.recursiveSetAltitude(neighbor)
-        return
-
 
     def setAltitudes(self): 
     #randomly creates altitudes for each tile
@@ -134,39 +125,44 @@ class Map:
         #chooses starting tiles
         a = random.randint(0, self.side-1)
         b = random.randint(0, self.side-1)
-        starttile = self.map[a][b]
-            #assigns random altitude ranging from values from 3 to 12
-        starttile.altitude = random.randint(3, 12)
-        starttile.parsed = True
-            #assigns altitudes to the rest of the map
-        self.recursiveSetAltitude(starttile)
+        startTile = self.map[a][b]
+        #assigns random altitude ranging from values from 3 to 12
+        startTile.altitude = random.randint(3, 12)
+        startTile.parsed = True
+        #assigns altitudes to the rest of the map
+        queue = []
+        queue.append(startTile)
+        tempAlt = startTile.altitude
+        #BFS assigning
+        while queue:
+            #obtains tile from queue
+            tile = queue.pop(0)
+            #sets altitude of the tile
+            increment = random.randint(-1, 1)
+            if (tempAlt + increment < 0):
+                tile.altitude = 0
+                tempAlt = 0
+            elif (tempAlt + increment > 15):
+                tile.altitude = 15
+                tempAlt = 15
+            else:
+                tile.altitude = tempAlt + increment
+                tile.altitude = tempAlt + increment
 
-
-
+            #appends neighbors to the queue
+            for neighbor in tile.neighbors:
+                if (neighbor.parsed == False):
+                    queue.append(neighbor)
+                    neighbor.parsed = True
+            self.setNeighbors()
         
         #resets parsed boolean values
         for i in range(self.side):
             for j in range(self.side):
                 self.map[i][j].parsed = False
+        self.setNeighbors()
 
 
-
-
-    def position(self, value):
-    #computes the index of value in the matrix interpreation of the array
-        indx = math.floor(value/self.side)
-        j = -indx*self.side + value
-        if j >= 0:
-            return [indx, j]
-        return [-1, -1]
-
-    def inv_position(self, i, j):
-    #Converts position back to an array value
-        if i >= self.side or i < 0:
-            return -1
-        if j >= self.side or j < 0:
-            return -1
-        return j + i * self.side
 
     def goalAbsence(self):
     #code used to determine when robot reaches goal
@@ -178,7 +174,82 @@ class Map:
     
     def showMapUnit(self, screen, i, j):
     #function used to refresh a tile on visualization
-        self.map[i][j].show(screen, self.side, self.map[j][i].unit)
+        self.map[i][j].show(screen, self.side, self.map[i][j].unit)
+
+    
+
+    #insert dijkstras here
+    def dijkstra(self, sRow, sCol, dRow, dCol):
+        #initiates distance and parent matrices
+        distance = [[sys.maxsize for i in range(self.side)] for j in range(self.side)]
+        parents = [[[-1,-1] for i in range(self.side)] for j in range(self.side)]
+        
+        #assigns start distance to 0 and adds first tile to priority queue
+        distance[sRow][sCol] = 0
+        tileQueue = queue.PriorityQueue()
+        tileQueue.put(PrioritizedItem(abs(sRow-dRow) + abs(sCol-dCol) + 1, self.map[sRow][sCol]))
+        #print("Tile Row: ")
+        #print(sRow)
+        #print(self.map[sRow][sCol].rowval)
+        #print("Col: ")
+        #print(sCol)
+        #print(self.map[sRow][sCol].colval)
+
+        #loops through all tile neighbors until reaching the point where there are no more tiles to check
+        while not(tileQueue.empty()):
+            #print("loop")
+            cTile = tileQueue.get().item
+            cTile = self.map[cTile.rowval][cTile.colval]
+            
+            #print("Tile Row: ")
+            #print(cTile.rowval)
+            #print("Col: ")
+            #print(cTile.colval)
+            #selects neighbor closest to destination
+            minimum = sys.maxsize
+            mincol = -1
+            minrow = -1
+            
+            for neighbor in cTile.neighbors:
+                if minimum > abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol) and neighbor.parsed == False:
+                    minimum = abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol)
+                    mincol = neighbor.colval
+                    minrow = neighbor.rowval
+            #if all neighbors already parsed, go next on the list
+            if mincol == -1 and minrow == -1:
+                #print("got to this point none found")
+                continue
+            #set tile parsed to true
+            self.map[minrow][mincol].parsed = True
+            self.setNeighbors()
+            #appends neighbor to priority queue
+            tileQueue.put(PrioritizedItem(minimum + 1, self.map[minrow][mincol]))
+            
+            #adjusts distance costs and previous tile for each neighbor of the parsed tile
+            for neighbor in cTile.neighbors:
+                weight = neighbor.altitude - cTile.altitude + 2
+                if weight < 1 or weight > 3:
+                    continue
+                if distance[neighbor.rowval][neighbor.colval] > distance[cTile.rowval][cTile.colval] + weight:
+                    distance[neighbor.rowval][neighbor.colval] = distance[cTile.rowval][cTile.colval] + weight
+                    parents[neighbor.rowval][neighbor.colval] = [cTile.rowval,cTile.colval]
+                    #print("new distance/parent")
+
+
+            #if there are still unvisited neighbors, add the tile back into priority queue
+            for neighbor in cTile.neighbors:
+                if neighbor.parsed == False:
+                    tileQueue.put(PrioritizedItem(abs(cTile.rowval-dRow) + abs(cTile.colval - dCol) + 1, self.map[cTile.rowval][cTile.colval]))
+        
+        #resets parsed boolean values
+        for i in range(self.side):
+            for j in range(self.side):
+                self.map[i][j].parsed = False
+                
+        self.setNeighbors()
+        return parents
+
+
 
  
 
@@ -200,8 +271,6 @@ destination = MAP.map[0][0]
 
 #Initiates boolean for iterative robot movement
 advanceOne = False
-
-
 
 #function to create a brand new map visualization
 def newMapVisual(dimension):
@@ -238,11 +307,15 @@ font = pygame.font.Font('freesansbold.ttf', 20)
 
 pygame.draw.rect(screen, (250,250,250), [800, 80, 200, 40])
 text2 = font.render('Advance Robot', True, (0,0,0))
-screen.blit(text2, (850, 80))
+screen.blit(text2, (830, 80))
 
 pygame.draw.rect(screen, (250,250,250), [800, 140, 200, 40])
 text3 = font.render('New 20x20', True, (0,0,0))
-screen.blit(text3, (850, 140))
+screen.blit(text3, (830, 140))
+
+pygame.draw.rect(screen, (250,250,250), [800, 200, 200, 40])
+text4 = font.render('Dijkstra Find Path', True, (0,0,0))
+screen.blit(text4, (830, 200))
 
 pygame.display.update()
 
@@ -266,9 +339,9 @@ def mousePress(x):
     h = 720 / rows
     a = x[0]
     b = x[1]
-    g1 = a // (720 // cols)
-    g2 = b // (720 // rows)
-
+    gcol = a // (720 // cols)
+    grow = b // (720 // rows)
+    tilePath = queue.LifoQueue()
     
 
     #First Click (select robot or advance robot)
@@ -278,12 +351,9 @@ def mousePress(x):
         if (a < 1000 and a > 800 and b < 180 and b > 140):
             newMapVisual(20)
 
-
-
-
         #OPTION 2: select unit
-        elif (g1 < cols):
-            unitSelected = MAP.map[g1][g2]
+        elif (gcol < cols):
+            unitSelected = MAP.map[grow][gcol]
             #tests if user clicks on the robot, or not
             if unitSelected.unit != "robot":
                 print("invalid tile")
@@ -292,19 +362,64 @@ def mousePress(x):
                 print("selected robot")
                 selectSecond = True
 
-                tilerect = pygame.Rect(g1 * h, g2 * h, h, h)
+                tilerect = pygame.Rect(gcol * h, grow * h, h, h)
                 screen.fill((80, 80, 0), tilerect, pygame.BLEND_RGB_ADD)
 
                 pygame.display.update()
-
 
         #OPTION 3: clicking advance robot
         elif (a < 1000 and a > 800 and b < 120 and b > 80):
             advanceOne = True
 
+        #OPTION 4: clicking Dijkstra Path Find
+        elif (a < 1000 and a > 800 and b < 240 and b > 200):
+            #find the robot and store its values
+            robotRow = -1
+            robotCol = -1
+            goalRow = -1
+            goalCol = -1
+            for i in range(MAP.side):
+                for j in range(MAP.side):
+                    if MAP.map[i][j].unit == "robot":
+                        robotRow = i
+                        robotCol = j
+                    if MAP.map[i][j].unit == "goal":
+                        goalRow = i
+                        goalCol = j
+            print(robotRow)
+            print(robotCol)
+            print(goalRow)
+            print(goalCol)
+            parents = MAP.dijkstra(robotRow,robotCol,goalRow,goalCol)
+            print("got to this point")
+            print(MAP.map[goalRow][goalCol].unit)
+            print(MAP.map[goalRow][goalCol].rowval)
+            print(MAP.map[goalRow][goalCol].colval)
+            print("got to this point")
+            tileInPath = MAP.map[parents[goalRow][goalCol][0]][parents[goalRow][goalCol][1]]
+            tilePath.put([goalRow,goalCol])
+            while True:
+                
+                print("Loop:retrieving path")
+                tileInPath = MAP.map[parents[tileInPath.rowval][tileInPath.colval][0]][parents[tileInPath.rowval][tileInPath.colval][1]]
+                MAP.map[tileInPath.rowval][tileInPath.colval].path = True
+                MAP.showMapUnit(screen, tileInPath.rowval, tileInPath.colval)
+                tilePath.put([tileInPath.rowval,tileInPath.colval])
+                if parents[tileInPath.rowval][tileInPath.colval][0] == -1:
+                    break
 
 
-        #OPTION 4: clicking elsewhere
+
+            MAP.setNeighbors()
+            print("-----------")
+            #updates visualization
+            pygame.display.update()
+
+                
+
+
+
+        #OPTION 5: clicking elsewhere
         else:
             print("invalid mouse press location")
             return
@@ -314,23 +429,26 @@ def mousePress(x):
 
     #Second Click (choose destination of unit)
     else:
-        if (g1 >= cols):
+        if (gcol >= cols):
             selectSecond = False
             print("invalid destination")
             return
 
-
-        destination = MAP.map[g1][g2]
+        destination = MAP.map[grow][gcol]
         #tests if destination is a neighbor;
         for neighbor in unitSelected.neighbors:
             if destination == neighbor:
-                print("appropriate destination found")
-                validDestination = True
+                if ((unitSelected.altitude - neighbor.altitude) < 2 and (unitSelected.altitude - neighbor.altitude) > -2):
+                    print("appropriate destination found")
+                    validDestination = True
+                else:
+                    print("cannot traverse this high altitude difference")
+                    return
         #returns to unit selection if invalid destination
         if validDestination == False:
             selectSecond = False
             print("invalid destination")
-            MAP.showMapUnit(screen, g2, g1)
+            MAP.showMapUnit(screen, grow, gcol)
             return
 
         #resets booleans and obtains indices
@@ -349,53 +467,45 @@ def mousePress(x):
             MAP.map[Drow][Dcol].unit = "robot"
             MAP.map[Urow][Ucol].unit = "empty"
         
+        #removes tilePath queue
+        while not(tilePath.empty()):
+            tilePath.get()
+        for i in range(cols):
+            for j in range(rows):
+                MAP.map[i][j].path = False
 
         MAP.setNeighbors()
         print("-----------")
         #updates visualization
-        MAP.showMapUnit(screen, Dcol, Drow)
-        MAP.showMapUnit(screen, Ucol, Urow)
+        MAP.showMapUnit(screen, Drow, Dcol)
+        MAP.showMapUnit(screen, Urow, Ucol)
         pygame.display.update()
 
 
 
-
-
-
-
-""""
-From this point on we are going to include the ai for the robot
-""" 
-
-#insert dijkstras here
+#insert BFS here
 
 
 
 
     
+end = False
 #visualization loop
 while True:
+    if end:
+        break
     ev = pygame.event.get()
     for event in ev:
-
         #Commands called when game is over
         if MAP.goalAbsence():
             print("Goal Reached")
-
-
-
+            end = True
+            break
 
         #MAIN FUNCTION FOR AGENT
-        #to be coded
+        #to be coded/calls Dijkstra's and others 
         if advanceOne:
             advanceOne = False
-
-
-
-
-
-
-
 
 
         #Extraneous code
