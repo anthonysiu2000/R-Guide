@@ -216,20 +216,19 @@ class Map:
                     distance[neighbor.rowval][neighbor.colval] = distance[cTile.rowval][cTile.colval] + weight
                     parents[neighbor.rowval][neighbor.colval] = [cTile.rowval,cTile.colval]
                     #print("new distance/parent")
-            
 
+                #inserts each unparsed neighbor into the tileQueue
+                if neighbor.parsed == False:
+                    self.map[neighbor.rowval][neighbor.colval].parsed = True
+                    tileQueue.put(PrioritizedItem(abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol) + 1, self.map[neighbor.rowval][neighbor.colval]))
+            
             #print("Tile Row: ")
             #print(cTile.rowval)
             #print("Col: ")
             #print(cTile.colval)
-            
-            #inserts each unparsed neighbor into the tileQueue
-            for neighbor in cTile.neighbors:
-                if neighbor.parsed == False:
-                    self.map[cTile.rowval][cTile.colval].parsed = True
-                    tileQueue.put(PrioritizedItem(abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol) + 1, self.map[neighbor.rowval][neighbor.colval]))
 
             self.setNeighbors()
+            print("looping")
         
         #resets parsed boolean values
         for i in range(self.side):
