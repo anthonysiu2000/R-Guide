@@ -185,9 +185,12 @@ class Map:
         parents = [[[-1,-1] for i in range(self.side)] for j in range(self.side)]
         
         #assigns start distance to 0 and adds first tile to priority queue
+        #because tilequeue is priority queue, tiles that are closer to the goal will be parsed first
         distance[sRow][sCol] = 0
         tileQueue = queue.PriorityQueue()
         tileQueue.put(PrioritizedItem(abs(sRow-dRow) + abs(sCol-dCol) + 1, self.map[sRow][sCol]))
+        self.map[sRow][sCol].parsed = True
+        self.setNeighbors()
         #print("Tile Row: ")
         #print(sRow)
         #print(self.map[sRow][sCol].rowval)
@@ -201,51 +204,39 @@ class Map:
             cTile = tileQueue.get().item
             cTile = self.map[cTile.rowval][cTile.colval]
             
-            #print("Tile Row: ")
-            #print(cTile.rowval)
-            #print("Col: ")
-            #print(cTile.colval)
-            #selects neighbor closest to destination
-            minimum = sys.maxsize
-            mincol = -1
-            minrow = -1
-            
-            for neighbor in cTile.neighbors:
-                if minimum > abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol) and neighbor.parsed == False:
-                    minimum = abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol)
-                    mincol = neighbor.colval
-                    minrow = neighbor.rowval
-            #if all neighbors already parsed, go next on the list
-            if mincol == -1 and minrow == -1:
-                #print("got to this point none found")
-                continue
-            #set tile parsed to true
-            self.map[minrow][mincol].parsed = True
-            self.setNeighbors()
-            #appends neighbor to priority queue
-            tileQueue.put(PrioritizedItem(minimum + 1, self.map[minrow][mincol]))
-            
             #adjusts distance costs and previous tile for each neighbor of the parsed tile
+            #main location for introducing weights
             for neighbor in cTile.neighbors:
                 weight = neighbor.altitude - cTile.altitude + 2
+                #ignores neighbors with an incompatible altitude difference
                 if weight < 1 or weight > 3:
                     continue
+                #out of all potential neighbors, assigns the parent of the tile to the most energy efficient tile
                 if distance[neighbor.rowval][neighbor.colval] > distance[cTile.rowval][cTile.colval] + weight:
                     distance[neighbor.rowval][neighbor.colval] = distance[cTile.rowval][cTile.colval] + weight
                     parents[neighbor.rowval][neighbor.colval] = [cTile.rowval,cTile.colval]
                     #print("new distance/parent")
+            
 
-
-            #if there are still unvisited neighbors, add the tile back into priority queue
+            #print("Tile Row: ")
+            #print(cTile.rowval)
+            #print("Col: ")
+            #print(cTile.colval)
+            
+            #inserts each unparsed neighbor into the tileQueue
             for neighbor in cTile.neighbors:
                 if neighbor.parsed == False:
-                    tileQueue.put(PrioritizedItem(abs(cTile.rowval-dRow) + abs(cTile.colval - dCol) + 1, self.map[cTile.rowval][cTile.colval]))
+                    self.map[cTile.rowval][cTile.colval].parsed = True
+                    tileQueue.put(PrioritizedItem(abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol) + 1, self.map[neighbor.rowval][neighbor.colval]))
+
+            self.setNeighbors()
         
         #resets parsed boolean values
         for i in range(self.side):
             for j in range(self.side):
                 self.map[i][j].parsed = False
-                
+        
+
         self.setNeighbors()
         return parents
 
@@ -390,26 +381,39 @@ def mousePress(x):
             print(robotCol)
             print(goalRow)
             print(goalCol)
+            #calls the dijkstra method
             parents = MAP.dijkstra(robotRow,robotCol,goalRow,goalCol)
             print("got to this point")
             print(MAP.map[goalRow][goalCol].unit)
             print(MAP.map[goalRow][goalCol].rowval)
             print(MAP.map[goalRow][goalCol].colval)
             print("got to this point")
+            print(parents[goalRow][goalCol][0])
+            print(parents[goalRow][goalCol][1])
+            
+            #creates a variable to store the tile that is the parent of the goal tile
             tileInPath = MAP.map[parents[goalRow][goalCol][0]][parents[goalRow][goalCol][1]]
+            #creates a queue to store the indexes of the goal tile, for use in "advance robot"
             tilePath.put([goalRow,goalCol])
             while True:
                 
                 print("Loop:retrieving path")
-                tileInPath = MAP.map[parents[tileInPath.rowval][tileInPath.colval][0]][parents[tileInPath.rowval][tileInPath.colval][1]]
+                #sets current tile to true, so that we will color it red
                 MAP.map[tileInPath.rowval][tileInPath.colval].path = True
-                MAP.showMapUnit(screen, tileInPath.rowval, tileInPath.colval)
+                #adds the current tile to the path queue
                 tilePath.put([tileInPath.rowval,tileInPath.colval])
+                #the next tile to be part of the path is the parent stored at the current tile
+                tileInPath = MAP.map[parents[tileInPath.rowval][tileInPath.colval][0]][parents[tileInPath.rowval][tileInPath.colval][1]]
+
+                #if we arrive at the robot's tile, we stop
                 if parents[tileInPath.rowval][tileInPath.colval][0] == -1:
                     break
 
 
-
+            
+            for i in range(MAP.side):
+                for j in range(MAP.side):
+                    MAP.showMapUnit(screen, i, j)
             MAP.setNeighbors()
             print("-----------")
             #updates visualization
