@@ -10,6 +10,7 @@ import queue
 from queue import PriorityQueue
 from dataclasses import dataclass, field
 from typing import Any
+from datetime import datetime
 
 @dataclass(order=True)
 class PrioritizedItem:
@@ -183,6 +184,7 @@ class Map:
 
     #insert dijkstras here
     def dijkstra(self, sRow, sCol, dRow, dCol):
+
         #initiates distance and parent matrices
         distance = [[sys.maxsize for i in range(self.side)] for j in range(self.side)]
         parents = [[[-1,-1] for i in range(self.side)] for j in range(self.side)]
@@ -194,12 +196,6 @@ class Map:
         tileQueue.put(PrioritizedItem(abs(sRow-dRow) + abs(sCol-dCol) + 1, self.map[sRow][sCol]))
         self.map[sRow][sCol].parsed = True
         self.setNeighbors()
-        #print("Tile Row: ")
-        #print(sRow)
-        #print(self.map[sRow][sCol].rowval)
-        #print("Col: ")
-        #print(sCol)
-        #print(self.map[sRow][sCol].colval)
 
         #loops through all tile neighbors until reaching the point where there are no more tiles to check
         while not(tileQueue.empty()):
@@ -312,7 +308,7 @@ text4 = font.render('Create Obstacles', True, (0,0,0))
 screen.blit(text4, (830, 260))
 
 pygame.display.update()
-
+print("----------------------------------------------")
 
 
 
@@ -383,6 +379,10 @@ def mousePress(x):
             #obtains the next pair of coordinates in the created path
             if tilePath.empty():
                 print("tilePath empty")
+                pygame.draw.rect(screen, (250,250,250), [800, 600, 200, 40])
+                text6 = font.render('Make Path First.', True, (200,0,0))
+                screen.blit(text6, (830, 600))
+                pygame.display.update()
                 return
             tileIndices = tilePath.get()
 
@@ -408,6 +408,9 @@ def mousePress(x):
         #OPTION 4: clicking Dijkstra Path Find
         elif (a < 1000 and a > 800 and b < 240 and b > 200):
 
+            #gets current time for runtime purposes
+            begin = datetime.now()
+
             #resets path values before finding a new path
             for i in range(cols):
                 for j in range(rows):
@@ -430,7 +433,9 @@ def mousePress(x):
                         goalRow = i
                         goalCol = j
             #calls the dijkstra method
+            beginD = datetime.now()
             parents = MAP.dijkstra(robotRow,robotCol,goalRow,goalCol)
+            endD = datetime.now()
             #creates a variable to store the tile that is the parent of the goal tile
             tileInPath = MAP.map[parents[goalRow][goalCol][0]][parents[goalRow][goalCol][1]]
             #creates a queue to store the indexes of the goal tile, for use in "advance robot"
@@ -458,9 +463,16 @@ def mousePress(x):
                 for j in range(MAP.side):
                     MAP.showMapUnit(screen, i, j)
             MAP.setNeighbors()
-            print("-----------")
             #updates visualization
             pygame.display.update()
+            
+            #gets current time for runtime purposes
+            end = datetime.now()
+            elapsedD = endD - beginD
+            elapsed = end - begin
+            print("Dijkstra runtime:", elapsedD.total_seconds(), "seconds")
+            print("Total runtime:", elapsed.total_seconds(), "seconds")
+            print("----------------------------------------------")
 
      
         #OPTION 5: clicking Create Obstacles
