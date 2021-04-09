@@ -255,11 +255,11 @@ unitSelected = MAP.map[0][0]
 #variable used to store desired location
 destination = MAP.map[0][0]
 
-#Initiates boolean for iterative robot movement
-advanceOne = False
-
 #boolean used for obstacle creation
 obstacleMake = False
+
+#used to store path
+tilePath = queue.LifoQueue()
 
 #function to create a brand new map visualization
 def newMapVisual(dimension):
@@ -268,8 +268,8 @@ def newMapVisual(dimension):
     global validDestination
     global unitSelected
     global destination
-    global advanceOne
     global obstacleMake
+    global tilePath
     MAP = Map(dimension)
     MAP.newMap()
     MAP.setNeighbors()
@@ -322,12 +322,12 @@ pygame.display.update()
 def mousePress(x):
     global selectSecond
     global validDestination
-    global advanceOne
     global obstacleMake
     global unitSelected
     global destination
     global MAP
     global screen
+    global tilePath
     cols = MAP.side
     rows = MAP.side
     w = 720 / cols
@@ -336,7 +336,6 @@ def mousePress(x):
     b = x[1]
     gcol = a // (720 // cols)
     grow = b // (720 // rows)
-    tilePath = queue.LifoQueue()
     
 
     #First Click (select robot or advance robot)
@@ -380,7 +379,31 @@ def mousePress(x):
 
         #OPTION 3: clicking advance robot
         elif (a < 1000 and a > 800 and b < 120 and b > 80):
-            advanceOne = True
+
+            #obtains the next pair of coordinates in the created path
+            if tilePath.empty():
+                print("tilePath empty")
+                return
+            tileIndices = tilePath.get()
+
+            #obtains robot coordinates
+            robotRow = -1
+            robotCol = -1
+            for i in range(MAP.side):
+                for j in range(MAP.side):
+                    if MAP.map[i][j].unit == "robot":
+                        robotRow = i
+                        robotCol = j
+
+            #updates visualization
+            MAP.map[tileIndices[0]][tileIndices[1]].unit = "robot"
+            MAP.map[robotRow][robotCol].unit = "empty"
+            MAP.map[robotRow][robotCol].path = False
+            MAP.setNeighbors()
+            MAP.showMapUnit(screen, tileIndices[0], tileIndices[1])
+            MAP.showMapUnit(screen, robotRow, robotCol)
+            pygame.display.update()
+            
 
         #OPTION 4: clicking Dijkstra Path Find
         elif (a < 1000 and a > 800 and b < 240 and b > 200):
@@ -552,12 +575,6 @@ while True:
             print("Goal Reached")
             end = True
             break
-
-        #MAIN FUNCTION FOR AGENT
-        #to be coded/calls Dijkstra's and others 
-        if advanceOne:
-            advanceOne = False
-
 
         #Extraneous code
         if event.type == pygame.QUIT:
