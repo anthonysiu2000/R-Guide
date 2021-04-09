@@ -66,7 +66,9 @@ class Tile:
                 pygame.draw.rect(screen, (255-self.altitude * 16, 0, 0), (self.colval * w, self.rowval * w, w, w), 0)
             else:
                 pygame.draw.rect(screen, (0, 0, 255-self.altitude * 16), (self.colval * w, self.rowval * w, w, w), 0)
-        
+        if unitType == "obstacle":
+            pygame.draw.rect(screen, (0, 255, 0), (self.colval * w, self.rowval * w, w, w), 0)
+
         pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w + w, self.rowval * w], 1)
         pygame.draw.line(screen, (0,0,0), [self.colval * w, self.rowval * w], [self.colval * w, self.rowval * w + w], 1)
         pygame.display.update()
@@ -114,7 +116,8 @@ class Map:
                             continue
                         if (j+l < 0) or (j+l >= self.side):
                             continue
-                        self.map[i][j].neighbors.append(self.map[i + k][j + l])
+                        if self.map[i + k][j + l].unit != "obstacle":
+                            self.map[i][j].neighbors.append(self.map[i + k][j + l])
 
 
     
@@ -138,7 +141,7 @@ class Map:
             #obtains tile from queue
             tile = queue.pop(0)
             #sets altitude of the tile
-            increment = random.randint(-1, 1)
+            increment = random.randint(-2, 2)
             if (tempAlt + increment < 0):
                 tile.altitude = 0
                 tempAlt = 0
@@ -215,20 +218,13 @@ class Map:
                 if distance[neighbor.rowval][neighbor.colval] > distance[cTile.rowval][cTile.colval] + weight:
                     distance[neighbor.rowval][neighbor.colval] = distance[cTile.rowval][cTile.colval] + weight
                     parents[neighbor.rowval][neighbor.colval] = [cTile.rowval,cTile.colval]
-                    #print("new distance/parent")
 
                 #inserts each unparsed neighbor into the tileQueue
                 if neighbor.parsed == False:
                     self.map[neighbor.rowval][neighbor.colval].parsed = True
                     tileQueue.put(PrioritizedItem(abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol) + 1, self.map[neighbor.rowval][neighbor.colval]))
-            
-            #print("Tile Row: ")
-            #print(cTile.rowval)
-            #print("Col: ")
-            #print(cTile.colval)
 
             self.setNeighbors()
-            print("looping")
         
         #resets parsed boolean values
         for i in range(self.side):
@@ -262,6 +258,9 @@ destination = MAP.map[0][0]
 #Initiates boolean for iterative robot movement
 advanceOne = False
 
+#boolean used for obstacle creation
+obstacleMake = False
+
 #function to create a brand new map visualization
 def newMapVisual(dimension):
     global MAP
@@ -270,6 +269,7 @@ def newMapVisual(dimension):
     global unitSelected
     global destination
     global advanceOne
+    global obstacleMake
     MAP = Map(dimension)
     MAP.newMap()
     MAP.setNeighbors()
@@ -307,6 +307,10 @@ pygame.draw.rect(screen, (250,250,250), [800, 200, 200, 40])
 text4 = font.render('Dijkstra Find Path', True, (0,0,0))
 screen.blit(text4, (830, 200))
 
+pygame.draw.rect(screen, (250,250,250), [800, 260, 200, 40])
+text4 = font.render('Create Obstacles', True, (0,0,0))
+screen.blit(text4, (830, 260))
+
 pygame.display.update()
 
 
@@ -319,6 +323,7 @@ def mousePress(x):
     global selectSecond
     global validDestination
     global advanceOne
+    global obstacleMake
     global unitSelected
     global destination
     global MAP
@@ -344,6 +349,22 @@ def mousePress(x):
         #OPTION 2: select unit
         elif (gcol < cols):
             unitSelected = MAP.map[grow][gcol]
+            #tests if we are making obstacles
+            if obstacleMake:
+                if unitSelected.unit == "empty":
+                    MAP.map[grow][gcol].unit = "obstacle"
+                    MAP.showMapUnit(screen, grow, gcol)
+                    MAP.setNeighbors()
+                    pygame.display.update()
+                elif unitSelected.unit == "obstacle":
+                    MAP.map[grow][gcol].unit = "empty"
+                    MAP.showMapUnit(screen, grow, gcol)
+                    MAP.setNeighbors()
+                    pygame.display.update()
+                else:
+                    print("cannot make this tile an obstacle")
+                return
+            
             #tests if user clicks on the robot, or not
             if unitSelected.unit != "robot":
                 print("invalid tile")
@@ -363,6 +384,15 @@ def mousePress(x):
 
         #OPTION 4: clicking Dijkstra Path Find
         elif (a < 1000 and a > 800 and b < 240 and b > 200):
+
+            #resets path values before finding a new path
+            for i in range(cols):
+                for j in range(rows):
+                    if(MAP.map[i][j].path):
+                        MAP.map[i][j].path = False
+                        MAP.showMapUnit(screen, i, j)
+
+
             #find the robot and store its values
             robotRow = -1
             robotCol = -1
@@ -376,40 +406,31 @@ def mousePress(x):
                     if MAP.map[i][j].unit == "goal":
                         goalRow = i
                         goalCol = j
-            print(robotRow)
-            print(robotCol)
-            print(goalRow)
-            print(goalCol)
             #calls the dijkstra method
             parents = MAP.dijkstra(robotRow,robotCol,goalRow,goalCol)
-            print("got to this point")
-            print(MAP.map[goalRow][goalCol].unit)
-            print(MAP.map[goalRow][goalCol].rowval)
-            print(MAP.map[goalRow][goalCol].colval)
-            print("got to this point")
-            print(parents[goalRow][goalCol][0])
-            print(parents[goalRow][goalCol][1])
-            
             #creates a variable to store the tile that is the parent of the goal tile
             tileInPath = MAP.map[parents[goalRow][goalCol][0]][parents[goalRow][goalCol][1]]
             #creates a queue to store the indexes of the goal tile, for use in "advance robot"
             tilePath.put([goalRow,goalCol])
             while True:
-                
-                print("Loop:retrieving path")
+                #checks if goal can be reached(found by checking if parents array of dijkstra's is -1, -1)
+                if parents[goalRow][goalCol][0] == -1:
+                    pygame.draw.rect(screen, (250,250,250), [800, 600, 200, 40])
+                    text5 = font.render('Path Not Found.', True, (200,0,0))
+                    screen.blit(text5, (830, 600))
+                    break
+
+
                 #sets current tile to true, so that we will color it red
                 MAP.map[tileInPath.rowval][tileInPath.colval].path = True
                 #adds the current tile to the path queue
                 tilePath.put([tileInPath.rowval,tileInPath.colval])
                 #the next tile to be part of the path is the parent stored at the current tile
                 tileInPath = MAP.map[parents[tileInPath.rowval][tileInPath.colval][0]][parents[tileInPath.rowval][tileInPath.colval][1]]
-
                 #if we arrive at the robot's tile, we stop
                 if parents[tileInPath.rowval][tileInPath.colval][0] == -1:
                     break
 
-
-            
             for i in range(MAP.side):
                 for j in range(MAP.side):
                     MAP.showMapUnit(screen, i, j)
@@ -418,11 +439,28 @@ def mousePress(x):
             #updates visualization
             pygame.display.update()
 
-                
+     
+        #OPTION 5: clicking Create Obstacles
+        elif (a < 1000 and a > 800 and b < 300 and b > 260):
+            if obstacleMake:
+                obstacleMake = False
+                pygame.draw.rect(screen, (250,250,250), [800, 260, 200, 40])
+                screen.blit(text4, (830, 260))
+                pygame.display.update()
+                print("obstacle creation off")
+            else:
+                obstacleMake = True
+                pygame.draw.rect(screen, (250,250,0), [800, 260, 200, 40])
+                screen.blit(text4, (830, 260))
+                pygame.display.update()
+                print("obstacle creation on")
+            
+
+                       
 
 
 
-        #OPTION 5: clicking elsewhere
+        #OPTION 6: clicking elsewhere
         else:
             print("invalid mouse press location")
             return
@@ -434,10 +472,12 @@ def mousePress(x):
     else:
         if (gcol >= cols):
             selectSecond = False
-            print("invalid destination")
+            print("Select a Tile")
             return
 
         destination = MAP.map[grow][gcol]
+        #determines if we are creating obstacles or not
+
         #tests if destination is a neighbor;
         for neighbor in unitSelected.neighbors:
             if destination == neighbor:
@@ -469,13 +509,21 @@ def mousePress(x):
         else: 
             MAP.map[Drow][Dcol].unit = "robot"
             MAP.map[Urow][Ucol].unit = "empty"
+            MAP.map[Urow][Ucol].path = False
         
-        #removes tilePath queue
+        #removes a single tile so that the next tile is appropriate
         while not(tilePath.empty()):
             tilePath.get()
-        for i in range(cols):
-            for j in range(rows):
-                MAP.map[i][j].path = False
+        #remove tilepath visualization if going off the path
+        if MAP.map[Drow][Dcol].path == False:
+            #removes tilePath queue if not following path
+            while not(tilePath.empty()):
+                tilePath.get()
+            for i in range(cols):
+                for j in range(rows):
+                    if(MAP.map[i][j].path):
+                        MAP.map[i][j].path = False
+                        MAP.showMapUnit(screen, i, j)
 
         MAP.setNeighbors()
         print("-----------")
