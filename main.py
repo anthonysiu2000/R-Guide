@@ -80,6 +80,7 @@ class Map:
     def __init__(self, side):
         self.side = side
         self.size = self.side * self.side
+        self.parents = [[[-1,-1] for i in range(self.side)] for j in range(self.side)]
 
         #creates map 2D array of Tiles
         self.map = [[0 for i in range(self.side)] for j in range(self.side)]
@@ -187,14 +188,13 @@ class Map:
 
         #initiates distance and parent matrices
         distance = [[sys.maxsize for i in range(self.side)] for j in range(self.side)]
-        parents = [[[-1,-1] for i in range(self.side)] for j in range(self.side)]
+        self.parents = [[[-1,-1] for i in range(self.side)] for j in range(self.side)]
         
         #assigns start distance to 0 and adds first tile to priority queue
         #because tilequeue is priority queue, tiles that are closer to the goal will be parsed first
         distance[sRow][sCol] = 0
         tileQueue = queue.PriorityQueue()
         tileQueue.put(PrioritizedItem(abs(sRow-dRow) + abs(sCol-dCol) + 1, self.map[sRow][sCol]))
-        self.map[sRow][sCol].parsed = True
         self.setNeighbors()
 
         #loops through all tile neighbors until reaching the point where there are no more tiles to check
@@ -202,23 +202,102 @@ class Map:
             #print("loop")
             cTile = tileQueue.get().item
             cTile = self.map[cTile.rowval][cTile.colval]
+            if self.map[cTile.rowval][cTile.colval].parsed == True:
+                continue
+            else:
+                self.map[cTile.rowval][cTile.colval].parsed = True
             
             #adjusts distance costs and previous tile for each neighbor of the parsed tile
             #main location for introducing weights
             for neighbor in cTile.neighbors:
                 weight = neighbor.altitude - cTile.altitude + 2
+                
                 #ignores neighbors with an incompatible altitude difference
-                if weight < 1 or weight > 3:
+                if weight < 1 or weight > 3 or neighbor.parsed == True:
                     continue
-                #out of all potential neighbors, assigns the parent of the tile to the most energy efficient tile
-                if distance[neighbor.rowval][neighbor.colval] > distance[cTile.rowval][cTile.colval] + weight:
-                    distance[neighbor.rowval][neighbor.colval] = distance[cTile.rowval][cTile.colval] + weight
-                    parents[neighbor.rowval][neighbor.colval] = [cTile.rowval,cTile.colval]
 
-                #inserts each unparsed neighbor into the tileQueue
-                if neighbor.parsed == False:
-                    self.map[neighbor.rowval][neighbor.colval].parsed = True
-                    tileQueue.put(PrioritizedItem(abs(neighbor.rowval-dRow) + abs(neighbor.colval-dCol) + 1, self.map[neighbor.rowval][neighbor.colval]))
+                #weights increase if it is a diagonal move
+                if abs(neighbor.rowval - cTile.rowval) == 1 and abs(neighbor.colval - cTile.colval) == 1:
+                    weight = weight * math.sqrt(2)
+
+                #out of all potential neighbors, assigns the parent of the tile to the most energy efficient tile
+                if distance[neighbor.rowval][neighbor.colval] > (distance[cTile.rowval][cTile.colval] + weight):
+                    distance[neighbor.rowval][neighbor.colval] = distance[cTile.rowval][cTile.colval] + weight
+                    self.parents[neighbor.rowval][neighbor.colval] = [cTile.rowval,cTile.colval]
+
+                #inserts each neighbor into the tileQueue
+                tileQueue.put(PrioritizedItem(distance[neighbor.rowval][neighbor.colval], self.map[neighbor.rowval][neighbor.colval]))
+            
+            self.setNeighbors()
+        
+        print("Dijkstra path length: ")
+        print(distance[dRow][dCol])
+        #resets parsed boolean values
+        for i in range(self.side):
+            for j in range(self.side):
+                self.map[i][j].parsed = False
+        
+
+        self.setNeighbors()
+        return [dRow, dCol]
+
+    #A star, using an octile heuristic
+    def aStar(self, sRow, sCol, dRow, dCol, isLimited):
+
+        #initiates distance and parent matrices
+        fCost = [[sys.maxsize for i in range(self.side)] for j in range(self.side)]
+        self.parents = [[[-1,-1] for i in range(self.side)] for j in range(self.side)]
+        
+        #assigns start distance to 0 and adds first tile to priority queue
+        #because tilequeue is priority queue, tiles that are closer to the goal will be parsed first
+        fCost[sRow][sCol] = 0
+        tileQueue = queue.PriorityQueue()
+        tileQueue.put(PrioritizedItem(0, self.map[sRow][sCol]))
+        self.setNeighbors()
+        foundEnd = False
+
+        #loops through all tile neighbors until reaching the point where there are no more tiles to check
+        while not(tileQueue.empty()):
+            #print("loop")
+            cTile = tileQueue.get().item
+            cTile = self.map[cTile.rowval][cTile.colval]
+            if self.map[cTile.rowval][cTile.colval].parsed == True:
+                continue
+            else:
+                self.map[cTile.rowval][cTile.colval].parsed = True
+
+            #if we want to limit visibility, current tile will only be parsed if below a certain depth
+            if isLimited == True and (abs(cTile.rowval - sRow) > 3 or abs(cTile.colval - sCol) > 3):
+                continue
+
+            #stop once we get to the target node
+            if cTile.rowval == dRow and cTile.colval == dCol:
+                self.setNeighbors()
+                foundEnd = True
+                break
+
+            #adjusts fCost costs and previous tile for each neighbor of the parsed tile
+            #main location for introducing weights
+            for neighbor in cTile.neighbors:
+                weight = neighbor.altitude - cTile.altitude + 2
+                
+                #ignores neighbors with an incompatible altitude difference or closed
+                if weight < 1 or weight > 3 or neighbor.parsed == True:
+                    continue
+                
+                #weights increase if it is a diagonal move
+                if abs(neighbor.rowval - cTile.rowval) == 1 and abs(neighbor.colval - cTile.colval) == 1:
+                    weight = weight * math.sqrt(2)
+                #gets fCost of the current tile HEURISTIC LOCATION
+                gCost = fCost[cTile.rowval][cTile.colval] + weight
+                hCost = max(3 * abs(dRow-neighbor.rowval) + (3 * math.sqrt(2) - 3) * abs(dCol-neighbor.colval), 3 * abs(dCol-neighbor.colval) + (3 * math.sqrt(2) - 3) * abs(dRow-neighbor.rowval))
+                f = gCost + hCost
+                #out of all potential neighbors, assigns the parent of the tile to the most energy efficient tile
+                if fCost[neighbor.rowval][neighbor.colval] > f:
+                    fCost[neighbor.rowval][neighbor.colval] = f
+                    self.parents[neighbor.rowval][neighbor.colval] = [cTile.rowval,cTile.colval]
+                    #inserts each unparsed neighbor into the tileQueue
+                    tileQueue.put(PrioritizedItem(f, self.map[neighbor.rowval][neighbor.colval]))
 
             self.setNeighbors()
         
@@ -229,7 +308,23 @@ class Map:
         
 
         self.setNeighbors()
-        return parents
+        if foundEnd:
+            return [dRow, dCol]
+        else:
+            #gets the tile with the lowest fcost 3 tiles away
+            lowestf = sys.maxsize
+            lowestfRow = 0
+            lowestfCol = 0
+            for i in range(-3, 4):
+                for j in range(-3, 4):
+                    if i == -3 or i == 3 or j == -3 or j == 3:
+                        if (sRow+i) < 0 or (sRow+i) > self.side-1 or (sCol+j) < 0 or (sCol+j) > self.side-1:
+                            continue
+                        if fCost[sRow + i][sCol + j] < lowestf:
+                            lowestf = fCost[sRow + i][sCol + j]
+                            lowestfRow = sRow + i
+                            lowestfCol = sCol + j
+            return [lowestfRow, lowestfCol]
 
 
 
@@ -254,6 +349,9 @@ destination = MAP.map[0][0]
 #boolean used for obstacle creation
 obstacleMake = False
 
+#boolean used for algorithms and limited visibility
+limitedVis = False
+
 #used to store path
 tilePath = queue.LifoQueue()
 
@@ -265,11 +363,17 @@ def newMapVisual(dimension):
     global unitSelected
     global destination
     global obstacleMake
+    global limitedVis
     global tilePath
+
+    print("NEW MAP: Creating new map")
     MAP = Map(dimension)
     MAP.newMap()
+    print("NEW MAP: assigning node connections")
     MAP.setNeighbors()
+    print("NEW MAP: generating altitudes")
     MAP.setAltitudes()
+    print("NEW MAP: updating screen")
     for i in range(MAP.side):
         for j in range(MAP.side):
             MAP.showMapUnit(screen, i, j)
@@ -280,7 +384,7 @@ def newMapVisual(dimension):
     destination = MAP.map[0][0]
     advanceOne = False
          
-    pygame.draw.rect(screen, (0,0,0), [800, 320, 200, 360])
+    pygame.draw.rect(screen, (0,0,0), [800, 600, 200, 180])
     pygame.display.update()
 
 
@@ -296,7 +400,7 @@ text2 = font.render('Advance Robot', True, (0,0,0))
 screen.blit(text2, (830, 80))
 
 pygame.draw.rect(screen, (250,250,250), [800, 140, 200, 40])
-text3 = font.render('New 20x20', True, (0,0,0))
+text3 = font.render('New 40x40', True, (0,0,0))
 screen.blit(text3, (830, 140))
 
 pygame.draw.rect(screen, (250,250,250), [800, 200, 200, 40])
@@ -304,8 +408,16 @@ text4 = font.render('Dijkstra Find Path', True, (0,0,0))
 screen.blit(text4, (830, 200))
 
 pygame.draw.rect(screen, (250,250,250), [800, 260, 200, 40])
+text8 = font.render('A* Find Path', True, (0,0,0))
+screen.blit(text8, (830, 260))
+
+pygame.draw.rect(screen, (250,250,250), [800, 320, 200, 40])
 text4 = font.render('Create Obstacles', True, (0,0,0))
-screen.blit(text4, (830, 260))
+screen.blit(text4, (830, 320))
+
+pygame.draw.rect(screen, (250,250,250), [800, 380, 200, 40])
+text7 = font.render('Toggle Lim. Vis.', True, (0,0,0))
+screen.blit(text7, (830, 380))
 
 pygame.display.update()
 print("----------------------------------------------")
@@ -319,6 +431,7 @@ def mousePress(x):
     global selectSecond
     global validDestination
     global obstacleMake
+    global limitedVis
     global unitSelected
     global destination
     global MAP
@@ -434,15 +547,15 @@ def mousePress(x):
                         goalCol = j
             #calls the dijkstra method
             beginD = datetime.now()
-            parents = MAP.dijkstra(robotRow,robotCol,goalRow,goalCol)
+            MAP.dijkstra(robotRow,robotCol,goalRow,goalCol)
             endD = datetime.now()
             #creates a variable to store the tile that is the parent of the goal tile
-            tileInPath = MAP.map[parents[goalRow][goalCol][0]][parents[goalRow][goalCol][1]]
+            tileInPath = MAP.map[MAP.parents[goalRow][goalCol][0]][MAP.parents[goalRow][goalCol][1]]
             #creates a queue to store the indexes of the goal tile, for use in "advance robot"
             tilePath.put([goalRow,goalCol])
             while True:
                 #checks if goal can be reached(found by checking if parents array of dijkstra's is -1, -1)
-                if parents[goalRow][goalCol][0] == -1:
+                if MAP.parents[goalRow][goalCol][0] == -1:
                     pygame.draw.rect(screen, (250,250,250), [800, 600, 200, 40])
                     text5 = font.render('Path Not Found.', True, (200,0,0))
                     screen.blit(text5, (830, 600))
@@ -454,9 +567,9 @@ def mousePress(x):
                 #adds the current tile to the path queue
                 tilePath.put([tileInPath.rowval,tileInPath.colval])
                 #the next tile to be part of the path is the parent stored at the current tile
-                tileInPath = MAP.map[parents[tileInPath.rowval][tileInPath.colval][0]][parents[tileInPath.rowval][tileInPath.colval][1]]
+                tileInPath = MAP.map[MAP.parents[tileInPath.rowval][tileInPath.colval][0]][MAP.parents[tileInPath.rowval][tileInPath.colval][1]]
                 #if we arrive at the robot's tile, we stop
-                if parents[tileInPath.rowval][tileInPath.colval][0] == -1:
+                if MAP.parents[tileInPath.rowval][tileInPath.colval][0] == -1:
                     break
 
             for i in range(MAP.side):
@@ -474,28 +587,133 @@ def mousePress(x):
             print("Total runtime:", elapsed.total_seconds(), "seconds")
             print("----------------------------------------------")
 
-     
-        #OPTION 5: clicking Create Obstacles
+
+        #OPTION 5: clicking A* Path Find
         elif (a < 1000 and a > 800 and b < 300 and b > 260):
+
+            #gets current time for runtime purposes
+            begin = datetime.now()
+
+            #resets path values before finding a new path
+            for i in range(cols):
+                for j in range(rows):
+                    if(MAP.map[i][j].path):
+                        MAP.map[i][j].path = False
+                        MAP.showMapUnit(screen, i, j)
+
+            #find the robot and store its values
+            robotRow = -1
+            robotCol = -1
+            goalRow = -1
+            goalCol = -1
+            for i in range(MAP.side):
+                for j in range(MAP.side):
+                    if MAP.map[i][j].unit == "robot":
+                        robotRow = i
+                        robotCol = j
+                    if MAP.map[i][j].unit == "goal":
+                        goalRow = i
+                        goalCol = j
+            #calls the dijkstra method
+            beginD = datetime.now()
+            goal = MAP.aStar(robotRow,robotCol,goalRow,goalCol, limitedVis)
+            endD = datetime.now()
+            #creates a variable to store the tile that is the parent of the goal tile
+            tileInPath = MAP.map[MAP.parents[goal[0]][goal[1]][0]][MAP.parents[goal[0]][goal[1]][1]]
+            #creates a queue to store the indexes of the goal tile, for use in "advance robot"
+            tilePath.put([goal[0],goal[1]])
+            #stores the path length
+            pathLen = 0
+            
+            #increments path length
+            firstWeight = MAP.map[goal[0]][goal[1]].altitude - MAP.map[tileInPath.rowval][tileInPath.colval].altitude + 2
+            #weights increase if it is a diagonal move
+            if abs(goal[0] - tileInPath.rowval) == 1 and abs(goal[1] - tileInPath.colval) == 1:
+                firstWeight = firstWeight * math.sqrt(2)
+            pathLen = pathLen + firstWeight
+            MAP.map[goal[0]][goal[1]].path = True
+
+            #checks if goal can be reached(found by checking if parents array of dijkstra's is -1, -1)
+            if MAP.parents[goal[0]][goal[1]][0] == -1:
+                pygame.draw.rect(screen, (250,250,250), [800, 600, 200, 40])
+                text5 = font.render('Path Not Found.', True, (200,0,0))
+                screen.blit(text5, (830, 600))
+                return
+
+            
+            while True:
+                currRow = tileInPath.rowval
+                currCol = tileInPath.colval
+                #sets current tile to true, so that we will color it red
+                MAP.map[currRow][currCol].path = True
+                #adds the current tile to the path queue
+                tilePath.put([currRow,currCol])
+                #the next tile to be part of the path is the parent stored at the current tile
+                tileInPath = MAP.map[MAP.parents[currRow][currCol][0]][MAP.parents[currRow][currCol][1]]
+
+                #increments path length
+                weight = MAP.map[currRow][currCol].altitude - MAP.map[tileInPath.rowval][tileInPath.colval].altitude + 2
+                #weights increase if it is a diagonal move
+                if abs(currRow - tileInPath.rowval) == 1 and abs(currCol - tileInPath.colval) == 1:
+                    weight = weight * math.sqrt(2)
+                pathLen = pathLen + weight
+
+                #if we arrive at the robot's tile, we stop
+                if MAP.parents[tileInPath.rowval][tileInPath.colval][0] == -1:
+                    break
+
+            print("Astar path length: ")
+            print(pathLen)
+
+            for i in range(MAP.side):
+                for j in range(MAP.side):
+                    MAP.showMapUnit(screen, i, j)
+            MAP.setNeighbors()
+            #updates visualization
+            pygame.display.update()
+            
+            #gets current time for runtime purposes
+            end = datetime.now()
+            elapsedD = endD - beginD
+            elapsed = end - begin
+            print("A* runtime:", elapsedD.total_seconds(), "seconds")
+            print("Total runtime:", elapsed.total_seconds(), "seconds")
+            print("----------------------------------------------")
+     
+        #OPTION 6: clicking Create Obstacles
+        elif (a < 1000 and a > 800 and b < 360 and b > 320):
             if obstacleMake:
                 obstacleMake = False
-                pygame.draw.rect(screen, (250,250,250), [800, 260, 200, 40])
-                screen.blit(text4, (830, 260))
+                pygame.draw.rect(screen, (250,250,250), [800, 320, 200, 40])
+                screen.blit(text4, (830, 320))
                 pygame.display.update()
                 print("obstacle creation off")
             else:
                 obstacleMake = True
-                pygame.draw.rect(screen, (250,250,0), [800, 260, 200, 40])
-                screen.blit(text4, (830, 260))
+                pygame.draw.rect(screen, (250,250,0), [800, 320, 200, 40])
+                screen.blit(text4, (830, 320))
                 pygame.display.update()
                 print("obstacle creation on")
             
-
+        #OPTION 7: clicking Toggle Limited visibility
+        elif (a < 1000 and a > 800 and b < 420 and b > 380):
+            if limitedVis:
+                limitedVis = False
+                pygame.draw.rect(screen, (250,250,250), [800, 380, 200, 40])
+                screen.blit(text7, (830, 380))
+                pygame.display.update()
+                print("limited visibility off")
+            else:
+                limitedVis = True
+                pygame.draw.rect(screen, (250,250,0), [800, 380, 200, 40])
+                screen.blit(text7, (830, 380))
+                pygame.display.update()
+                print("limited visibility on")
                        
 
 
 
-        #OPTION 6: clicking elsewhere
+        #OPTION 8: clicking elsewhere
         else:
             print("invalid mouse press location")
             return
@@ -538,7 +756,7 @@ def mousePress(x):
         Ucol = unitSelected.colval
 
         #checks if destination is pit
-        if destination.unit == "pit":
+        if destination.unit == "obstacle":
             print("robot has hit a pit")
             MAP.map[Urow][Ucol].unit = "empty"
         else: 
