@@ -64,9 +64,9 @@ class Tile:
             screen.blit(self.img, (self.colval * w, self.rowval * w), imageRect)
         if unitType == "empty":
             if self.path == True:
-                pygame.draw.rect(screen, (255-self.altitude * 16, 0, 0), (self.colval * w, self.rowval * w, w, w), 0)
+                pygame.draw.rect(screen, (255-self.altitude * 10, 0, 0), (self.colval * w, self.rowval * w, w, w), 0)
             else:
-                pygame.draw.rect(screen, (0, 0, 255-self.altitude * 16), (self.colval * w, self.rowval * w, w, w), 0)
+                pygame.draw.rect(screen, (0, 0, 255-self.altitude * 10), (self.colval * w, self.rowval * w, w, w), 0)
         if unitType == "obstacle":
             pygame.draw.rect(screen, (0, 255, 0), (self.colval * w, self.rowval * w, w, w), 0)
 
@@ -132,7 +132,7 @@ class Map:
         b = random.randint(0, self.side-1)
         startTile = self.map[a][b]
         #assigns random altitude ranging from values from 3 to 12
-        startTile.altitude = random.randint(3, 12)
+        startTile.altitude = random.randint(7, 12)
         startTile.parsed = True
         #assigns altitudes to the rest of the map
         queue = []
@@ -159,7 +159,7 @@ class Map:
                 if (neighbor.parsed == False):
                     queue.append(neighbor)
                     neighbor.parsed = True
-            self.setNeighbors()
+        self.setNeighbors()
         
         #resets parsed boolean values
         for i in range(self.side):
@@ -230,7 +230,7 @@ class Map:
             
             self.setNeighbors()
         
-        print("Dijkstra path length: ")
+        print("Dijkstra path length: ", end = '')
         print(distance[dRow][dCol])
         #resets parsed boolean values
         for i in range(self.side):
@@ -267,7 +267,7 @@ class Map:
                 self.map[cTile.rowval][cTile.colval].parsed = True
 
             #if we want to limit visibility, current tile will only be parsed if below a certain depth
-            if isLimited == True and (abs(cTile.rowval - sRow) > 3 or abs(cTile.colval - sCol) > 3):
+            if isLimited == True and (abs(cTile.rowval - sRow) > 5 or abs(cTile.colval - sCol) > 5):
                 continue
 
             #stop once we get to the target node
@@ -315,9 +315,9 @@ class Map:
             lowestf = sys.maxsize
             lowestfRow = 0
             lowestfCol = 0
-            for i in range(-3, 4):
-                for j in range(-3, 4):
-                    if i == -3 or i == 3 or j == -3 or j == 3:
+            for i in range(-5, 6):
+                for j in range(-5, 6):
+                    if i == -5 or i == 5 or j == -5 or j == 5:
                         if (sRow+i) < 0 or (sRow+i) > self.side-1 or (sCol+j) < 0 or (sCol+j) > self.side-1:
                             continue
                         if fCost[sRow + i][sCol + j] < lowestf:
@@ -390,7 +390,7 @@ def newMapVisual(dimension):
 
 
 #Initializing the map for visualization
-newMapVisual(20)
+newMapVisual(180)
 
 #CREATES BUTTON VISUALIZATION on the right side of the screen
 font = pygame.font.Font('freesansbold.ttf', 20)
@@ -400,7 +400,7 @@ text2 = font.render('Advance Robot', True, (0,0,0))
 screen.blit(text2, (830, 80))
 
 pygame.draw.rect(screen, (250,250,250), [800, 140, 200, 40])
-text3 = font.render('New 40x40', True, (0,0,0))
+text3 = font.render('New 20x20', True, (0,0,0))
 screen.blit(text3, (830, 140))
 
 pygame.draw.rect(screen, (250,250,250), [800, 200, 200, 40])
@@ -452,7 +452,7 @@ def mousePress(x):
 
         #OPTION 1: create new 20 by 20 map
         if (a < 1000 and a > 800 and b < 180 and b > 140):
-            newMapVisual(20)
+            newMapVisual(180)
 
         #OPTION 2: select unit
         elif (gcol < cols):
@@ -521,6 +521,7 @@ def mousePress(x):
         #OPTION 4: clicking Dijkstra Path Find
         elif (a < 1000 and a > 800 and b < 240 and b > 200):
 
+            print("Dijkstra generating")
             #gets current time for runtime purposes
             begin = datetime.now()
 
@@ -591,6 +592,7 @@ def mousePress(x):
         #OPTION 5: clicking A* Path Find
         elif (a < 1000 and a > 800 and b < 300 and b > 260):
 
+            print("A* generating")
             #gets current time for runtime purposes
             begin = datetime.now()
 
@@ -662,7 +664,7 @@ def mousePress(x):
                 if MAP.parents[tileInPath.rowval][tileInPath.colval][0] == -1:
                     break
 
-            print("Astar path length: ")
+            print("Astar path length: ", end = '')
             print(pathLen)
 
             for i in range(MAP.side):
@@ -796,15 +798,12 @@ def mousePress(x):
 end = False
 #visualization loop
 while True:
-    if end:
-        break
     ev = pygame.event.get()
     for event in ev:
         #Commands called when game is over
         if MAP.goalAbsence():
             print("Goal Reached")
             end = True
-            break
 
         #Extraneous code
         if event.type == pygame.QUIT:
